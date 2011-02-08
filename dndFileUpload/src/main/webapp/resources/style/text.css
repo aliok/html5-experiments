@@ -1,0 +1,18 @@
+@CHARSET "ISO-8859-1";
+
+	@font-face {
+      font-family: 'Ubuntu Title';
+      font-style: normal;
+      font-weight: normal;
+      src: local('Ubuntu Title'), url(/resources/Ubuntu-Title.ttf) format('truetype');
+    }
+    
+    .fontedText{
+        font-family: 'Ubuntu Title';
+    }
+    
+    .reflectedText
+    {
+        -webkit-box-reflect: below 1px -webkit-gradient(linear, 0% 0%, 0% 100%, from(transparent), to(rgba(255, 255, 255, 0.179688))) 0 0 0 0 stretch stretch;
+        text-shadow: rgba(0, 0, 0, 0.5) 0 5px 5px;
+    }
