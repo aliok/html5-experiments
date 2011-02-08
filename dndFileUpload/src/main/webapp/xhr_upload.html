@@ -1,0 +1,310 @@
+<html>
+	<head>
+    <style>
+    input.hiddenFileInput
+	{
+	    opacity: 0;
+	    position: relative;
+	    text-align: right;
+	    z-index: 2;
+	}
+	
+	label.fileInputLabel
+	{
+	    width: 79px;
+	    height: 22px;
+	    background: url(/resources/btn-choose-file.gif) 0 0 no-repeat;
+	 
+	    display: block;
+	    overflow: hidden;
+	    cursor: pointer;
+	}
+	
+    #dropZone
+    {
+        position:relative; 
+        width:750; 
+        height:300; 
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .dropZoneText
+    {
+        font-size: 30px;
+        font-weight: bold;
+        color: #555555;
+    }
+
+    .dragEntered
+    {
+        border: 2px dashed green;
+    }
+    
+    .thumbnail {
+		border: 0px;
+		height: 75px;
+		margin: 15px 15px 0px 0px;
+		width: 90px;
+	}
+       
+    .imgContainer{
+        float: left;
+        text-align: center;
+        width: 120px;
+        border : 2px solid black;
+        -webkit-transition: all 0.5s ease-in-out;
+        border-radius: 10px;
+    }
+    
+    .imgContainer:hover {
+       -webkit-transform: rotateZ(360deg) scale(1.5);
+     }
+        
+	</style>
+	
+	<script>
+	
+	   var xhr_upload = {};
+	   
+	   xhr_upload.strUrl = "http://localhost:8080/xhr_upload";
+	   xhr_upload.maxTotalSize = 1024 * 1024 * 8; //8MB
+	   
+	   xhr_upload.selectedFiles = new Array();
+	   
+	   xhr_upload.dropFiles = function(evt){
+		   this.addNewFiles(evt.dataTransfer.files);
+		   this.checkFilesOnSelection();
+		   this.updateSelectedFilesContainer();
+	   }
+	   
+	   xhr_upload.fileSelected = function (event){
+		   this.addNewFiles(document.getElementById('fileInput').files);
+           this.checkFilesOnSelection();
+           this.updateSelectedFilesContainer();
+       }
+	   
+	   xhr_upload.addNewFiles = function(files){
+		   for(var i=0; i < files.length; i++){
+			   this.selectedFiles.push(files[i]);   
+		   }
+	   }
+	   
+	   xhr_upload.updateSelectedFilesContainer = function(){
+		   var selectedFilesContainer = document.getElementById('selectedFilesContainer');
+		   selectedFilesContainer.innerHTML = '';
+		   for(var i=0; i<this.selectedFiles.length; i++){
+			    //var iconHtml = '<div class="gradientBox roundedBox fontedText flash" style="width:300px; text-align: center;">';
+			    //iconHtml += '<img class="thumbnail" src="' + this.getIcon(this.selectedFiles[i]) + '" />';
+			    //+ this.selectedFiles[i].name 
+			    //iconHtml += '</div>';
+			    //selectedFilesContainer.innerHTML += iconHtml;
+			   this.addIcon('selectedFilesContainer', this.selectedFiles[i]);
+		   }
+	   }
+	   
+	   xhr_upload.checkFilesOnSelection = function(){
+		   var button = document.getElementById('uploadButton');
+		   
+		   if(this.selectedFiles && this.selectedFiles.length > 0){
+               if(! this.checkTotalSize(this.selectedFiles))
+            	   button.disabled='true';
+               else{
+            	   button.disabled='';
+               }
+           }
+           else{
+        	   button.disabled='true';
+           }		   
+		   
+		   if(FileUtil.getTotalSize(this.selectedFiles) > this.maxTotalSize)
+			   document.getElementById('currentSizeTD').innerHTML = '<p class="fontedText" style="color:red;">Current size = ' + (FileUtil.getTotalSize(this.selectedFiles)/1024).toFixed() + ' KB.</p>' ;
+		   else
+			   document.getElementById('currentSizeTD').innerHTML = '<p class="fontedText">Current size = ' + (FileUtil.getTotalSize(this.selectedFiles)/1024).toFixed() + ' KB.</p>' ;
+	   }
+	   
+		xhr_upload.upload = function(){
+			var files = this.selectedFiles;
+		    if(!this.checkTotalSize(files)){
+		    	return;
+		    }
+		    
+			var formData = FileUtil.createFormData(files);  
+
+			var xhr = new XMLHttpRequest();
+			xhr.upload.addEventListener("progress", this.updateProgress, false);
+			//xhr.upload.addEventListener("load", this.transferComplete, false);
+			
+			xhr.addEventListener("load", this.transferComplete, false);
+			
+			xhr.open("POST", this.strUrl);  
+			xhr.send(formData); 
+		}
+		
+		// progress on transfers from the server to the client (downloads)
+		xhr_upload.updateProgress = function(evt) {
+		  if (evt.lengthComputable) {
+		    var percentComplete = evt.loaded / evt.total;
+		    var progressElement = document.getElementById('uploadProgress');
+		    percentComplete *= 100.0;
+		    progressElement.value = percentComplete;
+		    document.getElementById('uploadProgressText').innerHTML = '%' + percentComplete.toFixed();
+		  } else {
+		    // Unable to compute progress information since the total size is unknown
+		  }
+		}  
+		
+		xhr_upload.transferComplete = function(evt) {
+			var uploadedFilesDiv = document.getElementById('uploadedFilesDiv');
+			var infoDiv = document.createElement("div");
+			infoDiv.innerHTML = evt.target.responseText;
+			infoDiv.appendChild(EffectUtil.createRemoveIcon(infoDiv, uploadedFilesDiv));
+			
+			uploadedFilesDiv.appendChild(infoDiv);
+		}
+		
+		xhr_upload.checkTotalSize = function(files){
+			if(FileUtil.getTotalSize(files) > this.maxTotalSize){
+                return false;
+            }
+			return true;
+		}
+		
+		xhr_upload.addIcon = function(containerId, file){
+		    var mainContainer = document.getElementById(containerId);
+			
+			var img;
+			if (file.type.substr(0,6)=='image/') {  
+		        img = this.getImageIcon(containerId, file);  
+		    }
+		    else{
+		    	img = this.getGenericIcon(containerId, file);
+		    }
+			
+			var imgContainer = document.createElement("div");  
+			imgContainer.className='flash imgContainer';
+            
+            var fileNameDiv = document.createElement('p');
+            fileNameDiv.innerHTML = file.name;
+            fileNameDiv.className='fontedText';
+            
+            var scope = this;
+ 
+            var removeIcon = EffectUtil.createRemoveIcon(imgContainer, mainContainer, function(){scope.removeFile(file);});
+            fileNameDiv.appendChild(removeIcon);
+            
+            imgContainer.appendChild(img);
+            imgContainer.appendChild(fileNameDiv);
+			
+            mainContainer.appendChild(imgContainer);
+		}
+		
+		xhr_upload.getGenericIcon = function(containerId, file){
+			var img = this.createImg(containerId, file);
+			var extension = file.name.substr(file.name.length-3, file.name.length);
+			if(extension=='pdf')
+				img.src = '/resources/pdfFileIcon.png';
+			else if(extension=='txt')
+                img.src = '/resources/txtFileIcon.png';
+			else if(extension=='doc')
+                img.src = '/resources/docFileIcon.png';
+			else
+                img.src = '/resources/genericFileIcon.png';
+			
+			return img;
+		}
+		
+		xhr_upload.getImageIcon = function(containerId, file){
+			var img = this.createImg(containerId, file);
+			var reader = new FileReader();  
+		    reader.onload = (function(aImg) { return function(e) { aImg.src = e.target.result; }; })(img);  
+		    reader.readAsDataURL(file);
+		    return img;
+		}
+		
+		xhr_upload.createImg = function(containerId, file){
+			var img = document.createElement("img");  
+		    img.className='thumbnail';  
+		    img.file = file;  
+		    return img;
+		}
+		
+		xhr_upload.removeFile = function(file){
+			//for(var i=0; i<this.selectedFiles.length; i++){
+				//if(this.selectedFiles[i].name == file.name)
+					//this.selectedFiles.remove(this.selectedFiles);
+			//}
+			this.selectedFiles.removeItems(file);
+			this.checkFilesOnSelection();
+        }
+
+	</script>
+	
+	<script type="text/javascript" src="/resources/script/util.js" ></script>
+	<script type="text/javascript" src="/resources/script/effectUtil.js" ></script>
+	<script type="text/javascript" src="/resources/script/fileUtil.js" ></script>
+	
+	<link rel="stylesheet" type="text/css" href="/resources/style/animation.css" />
+	<link rel="stylesheet" type="text/css" href="/resources/style/text.css" />
+	<link rel="stylesheet" type="text/css" href="/resources/style/box.css" /> 
+	
+	</head>
+	<body>
+	   <table style="border: 1px dashed gray; padding: 10px" class="" width="800px" align="center">
+	       <tr align="center">
+	           <td>
+	               <div id="dropZone" class="roundedBox gradientBox"
+	                   ondragenter="className='roundedBox dragEntered';return false;" 
+                       ondragover="return false" ondragleave="className='roundedBox gradientBox';" ondrop="className='shake roundedBox gradientBox';xhr_upload.dropFiles(event)">
+                       <span class="fontedText" style="font-size: large;">Drop files here!</span>
+                       <table align="center" width="100%" height="100%" class="dropZoneTable">
+                            <tr valign="middle">
+                                <td class="fontedText" align="center">
+                                    Max allowed size : 8MB;
+                                </td>
+                                <td id="currentSizeTD" align="center">
+                                </td>
+                            </tr>
+                            <tr valign="middle">
+                                <td colspan="2">
+                                    <div id="selectedFilesContainer" style="z-index: -100;">
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+              </td>
+	       </tr>
+	       <tr>
+	           <td align="center">
+	               <p class="fontedText" style="font-size: 20px; padding-top: 100px;">
+	                   Or, alternatively
+	                   <label class="fileInputLabel">
+	                       <input type="file" id="fileInput" class="hiddenFileInput" multiple="true" onchange="xhr_upload.fileSelected(event);"/>
+	                   </label>
+                   </p> 
+	               
+	           </td>
+	       </tr>
+	       <tr>
+               <td colspan="2" align="center">
+                   <input type="button" id="uploadButton" class="fontedText" style="font-size: larger;" 
+                        value="Upload Selected Files" onclick="xhr_upload.upload();" disabled="true"/>
+               </td>
+           </tr>
+           <tr>
+               <td colspan="2" align="center">
+                    <progress id="uploadProgress" value="0" max="100" ></progress>
+                    <span id ="uploadProgressText" class="fontedText" style="font-size: larger;"></span>
+               </td>
+           </tr>
+           <tr>
+              <td colspan="2" align="center">
+                <div id="uploadedFilesDiv" class="fontedText">
+                </div>
+              </td>
+           </tr>
+	   </table>
+	   
+
+</html>
